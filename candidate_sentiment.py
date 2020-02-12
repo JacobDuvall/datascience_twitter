@@ -39,12 +39,12 @@ def get_sentiment(tweet):
     analysis = TextBlob(tweet)
 
     if analysis.sentiment.polarity > threshold:
-        return 1
+        return 1, analysis.sentiment.polarity
 
     if analysis.sentiment.polarity < threshold:  # -threshold:
-        return -1
+        return -1, analysis.sentiment.polarity
 
-    return 0
+    return 0, analysis.sentiment.polarity
 
 
 def sort_id_by_date(tweet_):
@@ -141,9 +141,11 @@ def calculate_sentiment(tweets):
     positive_count = 0
     negative_count = 0
     neutral_count = 0
+    compound_count = 0
 
     for tweet in tweets:
-        score = get_sentiment(tweet)
+        score, compound = get_sentiment(tweet)
+        compound_count = compound_count + compound
         if score > 0:
             positive_count += 1
         elif score < 0:
@@ -151,17 +153,18 @@ def calculate_sentiment(tweets):
         else:
             neutral_count += 1
 
-    return positive_count, negative_count, neutral_count
+    return positive_count, negative_count, neutral_count, (compound_count / len(tweets))
 
 
-def write_sentiment(candidate, positive, negative, neutral, compound):
+def write_sentiment(candidate, positive, negative, neutral, compound, compound_tb):
 
     yesterday = get_dates()[1]
 
     query = "INSERT INTO Candidate_Sentiment ([name], sentiment_date, positive_tweet_count," \
-            " negative_tweet_count, neutral_tweet_count, compound_sentiment)" \
-            " VALUES ('%s', '%s', '%s', '%s', '%s', %s)" % (candidate, yesterday, positive,
-                                                        negative, neutral, compound)
+            " negative_tweet_count, neutral_tweet_count, compound_sentiment_vadersentiment, " \
+            "compound_sentiment_textblob)" \
+            " VALUES ('%s', '%s', '%s', '%s', '%s', %s, %s)" % (candidate, yesterday, positive,
+                                                        negative, neutral, compound, compound_tb)
 
     insert_database(query)
 
@@ -174,12 +177,11 @@ def get_tweets_by_phrase(candidate):
 
     tweets = load_tweet_list(api, search_phrase)
 
-    positive, negative, neutral = calculate_sentiment(tweets)
+    positive, negative, neutral, compound_textblob = calculate_sentiment(tweets)
 
     compound = get_compound_sentiment(tweets)
 
-
-    write_sentiment(candidate, positive, negative, neutral, compound)
+    write_sentiment(candidate, positive, negative, neutral, compound, compound_textblob)
 
 
 
