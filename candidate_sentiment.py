@@ -3,6 +3,7 @@ import datetime
 from textblob import TextBlob
 from sql_server import *
 from retry import retry
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 # Gets yesterday's date and today's date
 def get_dates():
@@ -123,6 +124,18 @@ def load_tweet_list(api, phrase):
 
     return tweets_list
 
+
+def get_compound_sentiment(tweets):
+    analyzer = SentimentIntensityAnalyzer()
+    vs_total = 0
+
+    for tweet in tweets:
+        vs = analyzer.polarity_scores(tweet)
+        vs_total += vs['compound']
+
+    return vs_total / len(tweets)
+
+
 def calculate_sentiment(tweets):
 
     positive_count = 0
@@ -141,16 +154,17 @@ def calculate_sentiment(tweets):
     return positive_count, negative_count, neutral_count
 
 
-def write_sentiment(candidate, positive, negative, neutral):
+def write_sentiment(candidate, positive, negative, neutral, compound):
 
     yesterday = get_dates()[1]
 
     query = "INSERT INTO Candidate_Sentiment ([name], sentiment_date, positive_tweet_count," \
-            " negative_tweet_count, neutral_tweet_count)" \
-            " VALUES ('%s', '%s', '%s', '%s', '%s')" % (candidate, yesterday, positive,
-                                                        negative, neutral)
+            " negative_tweet_count, neutral_tweet_count, compound_sentiment)" \
+            " VALUES ('%s', '%s', '%s', '%s', '%s', %s)" % (candidate, yesterday, positive,
+                                                        negative, neutral, compound)
 
     insert_database(query)
+
 
 def get_tweets_by_phrase(candidate):
 
@@ -162,7 +176,10 @@ def get_tweets_by_phrase(candidate):
 
     positive, negative, neutral = calculate_sentiment(tweets)
 
-    write_sentiment(candidate, positive, negative, neutral)
+    compound = get_compound_sentiment(tweets)
+
+
+    write_sentiment(candidate, positive, negative, neutral, compound)
 
 
 
